@@ -68,6 +68,7 @@ model Product {
   createdAt      DateTime      @default(now()) @map("created_at")
   category       Category      @relation(fields: [categoryId], references: [id])
   transactionItems TransactionItem[]
+  orderItems     OrderItem[]
   stockLogs      StockLog[]
 
   @@map("products")
@@ -114,6 +115,37 @@ model TransactionItem {
   product       Product     @relation(fields: [productId], references: [id])
 
   @@map("transaction_items")
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  done
+}
+
+model Order {
+  id            String       @id @default(cuid())
+  customerName  String       @map("customer_name")
+  tableNumber   Int?         @map("table_number")
+  notes         String?
+  status        OrderStatus  @default(pending)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  items         OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id          String  @id @default(cuid())
+  orderId     String  @map("order_id")
+  productId   String  @map("product_id")
+  qty         Int
+  priceAtOrder Float  @map("price_at_order")
+  subtotal    Float
+  order       Order   @relation(fields: [orderId], references: [id])
+  product     Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
 }
 
 model Setting {

@@ -1,5 +1,7 @@
 import Link from "next/link"
 import { ClockIcon, MapPinIcon, PhoneIcon, ArrowRightIcon } from "@heroicons/react/24/outline"
+import { StarIcon as StarIconSolid } from "@heroicons/react/20/solid"
+import MenuSection from "@/components/landing/MenuSection"
 
 async function getProducts() {
   try {
@@ -21,10 +23,6 @@ async function getCategories() {
   }
 }
 
-function formatPrice(amount: number) {
-  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(amount)
-}
-
 export default async function LandingPage() {
   const [products, categories] = await Promise.all([getProducts(), getCategories()])
 
@@ -43,6 +41,12 @@ export default async function LandingPage() {
           <nav className="flex items-center gap-6">
             <a href="#menu" className="text-sm text-brown-light hover:text-brown transition-colors hidden sm:block">Menu</a>
             <a href="#info" className="text-sm text-brown-light hover:text-brown transition-colors hidden sm:block">Informasi</a>
+            <Link
+              href="/order"
+              className="px-5 py-2 rounded-xl bg-terracotta text-white text-sm font-semibold hover:bg-terracotta-light transition-colors shadow-sm"
+            >
+              Pesan
+            </Link>
             <Link href="/login" className="px-4 py-2 rounded-xl border border-cream-dark text-brown text-sm font-medium hover:bg-cream transition-colors">
               Login
             </Link>
@@ -68,9 +72,12 @@ export default async function LandingPage() {
                   Kopi kekinian, snack enak, dan suasana hangat buat ngerjain tugas atau sekadar ngopi santai.
                 </p>
                 <div className="flex items-center gap-4 mt-8">
-                  <a href="#menu" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white font-semibold hover:bg-terracotta-light transition-colors shadow-lg shadow-terracotta/20">
-                    Lihat Menu
+                  <Link href="/order" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-terracotta text-white font-semibold hover:bg-terracotta-light transition-colors shadow-lg shadow-terracotta/20">
+                    Pesan Sekarang
                     <ArrowRightIcon className="w-4 h-4" />
+                  </Link>
+                  <a href="#menu" className="inline-flex items-center gap-2 px-6 py-3 rounded-xl border border-cream-dark text-brown font-semibold hover:bg-cream transition-colors">
+                    Lihat Menu
                   </a>
                 </div>
               </div>
@@ -93,72 +100,9 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section id="menu" className="py-20 px-6 bg-cream">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-serif font-bold text-brown">Menu Kami</h2>
-              <p className="text-brown-light mt-2">Nikmati pilihan makanan & minuman favoritmu</p>
-            </div>
+        <MenuSection products={featured} categories={categories} />
 
-            {featured.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                {featured.map((product: any) => (
-                  <div
-                    key={product.id}
-                    className="bg-white rounded-2xl overflow-hidden border border-cream-dark hover:shadow-lg hover:shadow-brown/5 transition-all hover:-translate-y-1"
-                  >
-                    <div className="aspect-[4/3] bg-gradient-to-br from-cream to-cream-dark flex items-center justify-center">
-                      {product.imageUrl ? (
-                        <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="text-4xl">☕</span>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-serif font-semibold text-brown">{product.name}</h3>
-                      {product.description && (
-                        <p className="text-brown-light text-xs mt-1 line-clamp-2">{product.description}</p>
-                      )}
-                      <div className="flex items-center justify-between mt-3">
-                        <span className="font-bold text-terracotta">{formatPrice(product.price)}</span>
-                        {product.stockQty <= 0 && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">Habis</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {[
-                  { name: "Kopi Susu", price: 18000, emoji: "☕" },
-                  { name: "Americano", price: 15000, emoji: "☕" },
-                  { name: "Matcha Latte", price: 22000, emoji: "🍵" },
-                  { name: "Croissant", price: 12000, emoji: "🥐" },
-                  { name: "Nasi Goreng", price: 25000, emoji: "🍚" },
-                  { name: "French Fries", price: 15000, emoji: "🍟" },
-                  { name: "Milk Shake", price: 20000, emoji: "🥤" },
-                  { name: "Espresso", price: 12000, emoji: "☕" },
-                ].map((item, i) => (
-                  <div key={i} className="bg-white rounded-2xl overflow-hidden border border-cream-dark hover:shadow-lg hover:shadow-brown/5 transition-all hover:-translate-y-1">
-                    <div className="aspect-[4/3] bg-gradient-to-br from-cream to-cream-dark flex items-center justify-center text-5xl">
-                      {item.emoji}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-serif font-semibold text-brown">{item.name}</h3>
-                      <div className="flex items-center justify-between mt-3">
-                        <span className="font-bold text-terracotta">{formatPrice(item.price)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section id="info" className="py-20 px-6">
+        <section id="info" className="py-20 px-6 scroll-mt-16">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-3xl font-serif font-bold text-brown text-center mb-12">Informasi Kafe</h2>
             <div className="grid md:grid-cols-3 gap-8">
@@ -197,6 +141,60 @@ export default async function LandingPage() {
             </div>
           </div>
         </section>
+
+        <section className="py-20 px-6 bg-cream/50">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-3xl font-serif font-bold text-brown text-center mb-12">Kata Mereka</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              {[
+                { name: "Aulia Rahma", role: "Mahasiswa", text: "Tempat favorit buat ngerjain tugas! Kopinya enak, suasananya cozy. Wi-Fi-nya juga kenceng.", rating: 5 },
+                { name: "Dimas Pratama", role: "Mahasiswa", text: "Espresso-nya mantap, harganya ramah di kantong. Jadi langganan tiap minggu.", rating: 5 },
+                { name: "Sari Indah", role: "Dosen", text: "Suasananya tenang, cocok buat baca atau ngoreksi tugas. Pelayanan ramah banget.", rating: 4 },
+              ].map((testimonial, i) => (
+                <div key={i} className="bg-white rounded-2xl p-6 border border-cream-dark hover:shadow-md transition-shadow">
+                  <div className="flex gap-1 mb-3">
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <StarIconSolid key={j} className={`w-4 h-4 ${j < testimonial.rating ? "text-gold" : "text-cream-dark"}`} />
+                    ))}
+                  </div>
+                  <p className="text-brown text-sm leading-relaxed italic">&ldquo;{testimonial.text}&rdquo;</p>
+                  <div className="flex items-center gap-3 mt-4 pt-4 border-t border-cream-dark/50">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-terracotta/30 to-gold/30 flex items-center justify-center text-brown font-semibold text-sm shrink-0">
+                      {testimonial.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-brown">{testimonial.name}</p>
+                      <p className="text-xs text-brown-light">{testimonial.role}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 px-6 bg-gradient-to-br from-terracotta to-terracotta-light relative overflow-hidden">
+          <div className="absolute inset-0 opacity-5">
+            <div className="absolute top-10 left-10 text-8xl">☕</div>
+            <div className="absolute bottom-10 right-10 text-8xl">🥐</div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-9xl">🍵</div>
+          </div>
+          <div className="relative max-w-3xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-serif font-bold text-white mb-4">
+              Siap Ngopi?
+            </h2>
+            <p className="text-white/80 text-lg mb-8 max-w-lg mx-auto">
+              Pesan sekarang langsung dari kampus. Takeaway atau dine-in, terserah kamu!
+            </p>
+            <Link
+              href="/order"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-white text-terracotta font-semibold hover:bg-cream transition-colors shadow-lg shadow-black/10"
+            >
+              Pesan Sekarang
+              <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          </div>
+        </section>
       </main>
 
       <footer className="bg-brown py-10 px-6">
@@ -211,6 +209,7 @@ export default async function LandingPage() {
             <div className="flex items-center gap-6 text-sm text-cream-dark">
               <a href="#menu" className="hover:text-cream transition-colors">Menu</a>
               <a href="#info" className="hover:text-cream transition-colors">Informasi</a>
+              <Link href="/order" className="hover:text-cream transition-colors">Pesan</Link>
               <Link href="/login" className="hover:text-cream transition-colors">Login</Link>
             </div>
             <p className="text-cream-dark text-sm">&copy; 2026 Forever Caffe</p>
