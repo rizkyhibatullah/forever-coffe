@@ -117,6 +117,11 @@ model TransactionItem {
   @@map("transaction_items")
 }
 
+enum OrderPaymentMethod {
+  counter
+  qris
+}
+
 enum OrderStatus {
   pending
   confirmed
@@ -124,13 +129,14 @@ enum OrderStatus {
 }
 
 model Order {
-  id            String       @id @default(cuid())
-  customerName  String       @map("customer_name")
-  tableNumber   Int?         @map("table_number")
-  notes         String?
-  status        OrderStatus  @default(pending)
-  createdAt     DateTime     @default(now()) @map("created_at")
-  items         OrderItem[]
+  id             String              @id @default(cuid())
+  customerName   String              @map("customer_name")
+  tableNumber    Int?                @map("table_number")
+  notes          String?
+  status         OrderStatus         @default(pending)
+  paymentMethod  OrderPaymentMethod  @default(counter) @map("payment_method")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  items          OrderItem[]
 
   @@map("orders")
 }

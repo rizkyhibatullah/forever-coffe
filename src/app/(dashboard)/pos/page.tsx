@@ -42,6 +42,7 @@ interface Order {
   tableNumber: number | null
   notes: string | null
   status: "pending" | "confirmed" | "done"
+  paymentMethod: "counter" | "qris"
   createdAt: string
   items: OrderItem[]
 }
@@ -89,6 +90,7 @@ export default function POSPage() {
   const { items, addItem, removeItem, updateQty, subtotal, totalItems, clearCart } = useCartStore()
 
   const prevPendingIds = useRef<Set<string>>(new Set())
+  const prevConfirmedIds = useRef<Set<string>>(new Set())
   const isFirstFetch = useRef(true)
   const processingRef = useRef<Set<string>>(new Set())
 
@@ -123,20 +125,31 @@ export default function POSPage() {
         if (!res.ok) return
         const data: Order[] = await res.json()
         const currentPending = new Set(data.filter((o) => o.status === "pending").map((o) => o.id))
-        const prevPending = prevPendingIds.current
+        const currentConfirmed = new Set(data.filter((o) => o.status === "confirmed").map((o) => o.id))
 
         if (!isFirstFetch.current) {
+          let newOrder = false
           for (const id of currentPending) {
-            if (!prevPending.has(id)) {
+            if (!prevPendingIds.current.has(id)) {
               playNotificationSound()
               toast.success("Pesanan baru masuk!", { duration: 3000 })
+              newOrder = true
             }
           }
+          for (const id of currentConfirmed) {
+            if (!prevConfirmedIds.current.has(id)) {
+              playNotificationSound()
+              toast.success("Pesanan QRIS baru!", { duration: 3000 })
+              newOrder = true
+            }
+          }
+          if (newOrder) setShowOrdersPanel(true)
         } else {
           isFirstFetch.current = false
         }
 
         prevPendingIds.current = currentPending
+        prevConfirmedIds.current = currentConfirmed
 
         setOrders((prev) => {
           const processing = processingRef.current
@@ -205,6 +218,7 @@ export default function POSPage() {
 
   const cartSubtotal = subtotal()
   const pendingCount = pendingOrders.length
+  const activeOrdersCount = pendingOrders.length + confirmedOrders.length
 
   return (
     <div className="flex gap-6 h-[calc(100vh-3rem)] relative">
@@ -226,9 +240,9 @@ export default function POSPage() {
           >
             <BellIcon className="w-5 h-5" />
             <span className="hidden sm:inline">Pesanan Masuk</span>
-            {pendingCount > 0 && (
+            {activeOrdersCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 text-[10px] font-bold bg-red-500 text-white min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 shadow">
-                {pendingCount > 99 ? "99+" : pendingCount}
+                {activeOrdersCount > 99 ? "99+" : activeOrdersCount}
               </span>
             )}
           </button>
@@ -603,7 +617,12 @@ function OrderCard({
     <div className="bg-cream/50 rounded-xl border border-cream-dark p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-charcoal text-sm truncate">{order.customerName}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-semibold text-charcoal text-sm truncate">{order.customerName}</p>
+            {order.paymentMethod === "qris" && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 font-medium shrink-0">QRIS</span>
+            )}
+          </div>
           {order.tableNumber && (
             <p className="text-xs text-brown-light mt-0.5">Meja {order.tableNumber}</p>
           )}

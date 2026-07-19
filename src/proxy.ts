@@ -24,6 +24,8 @@ export default auth((req) => {
       return NextResponse.redirect(new URL("/pos", req.url))
     }
   }
+
+  return NextResponse.next()
 })
 
 export const config = {

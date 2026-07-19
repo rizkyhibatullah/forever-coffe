@@ -50,6 +50,7 @@ interface Order {
   tableNumber: number | null
   notes: string | null
   status: string
+  paymentMethod?: string
   createdAt: string
   items: OrderItemData[]
 }
@@ -67,6 +68,9 @@ export default function OrderPage() {
   const [successOrder, setSuccessOrder] = useState<Order | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<"counter" | "qris">("counter")
+  const [qrisImageUrl, setQrisImageUrl] = useState<string | null>(null)
+  const [qrisConfirming, setQrisConfirming] = useState(false)
 
   const { items, addItem, removeItem, updateQty, subtotal, totalItems, clearCart } = useCartStore()
 
@@ -84,12 +88,17 @@ export default function OrderPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [productsRes, categoriesRes] = await Promise.all([
+        const [productsRes, categoriesRes, settingsRes] = await Promise.all([
           fetch("/api/products"),
           fetch("/api/categories"),
+          fetch("/api/settings"),
         ])
         if (productsRes.ok) setProducts(await productsRes.json())
         if (categoriesRes.ok) setCategories(await categoriesRes.json())
+        if (settingsRes.ok) {
+          const s = await settingsRes.json()
+          setQrisImageUrl(s?.qrisImageUrl ?? null)
+        }
       } catch {
         toast.error("Gagal memuat data menu")
       } finally {
@@ -147,6 +156,7 @@ export default function OrderPage() {
           customerName: customerName.trim(),
           tableNumber: tableNumber ? Number.parseInt(tableNumber) : null,
           notes: notes.trim() ? notes.trim() : null,
+          paymentMethod,
           items: items.map((i) => ({ productId: i.productId, qty: i.qty })),
         }),
       })
@@ -158,13 +168,19 @@ export default function OrderPage() {
       setCustomerName("")
       setTableNumber("")
       setNotes("")
-      toast.success("Pesanan berhasil dikirim!")
+      toast.success(paymentMethod === "qris" ? "Pembayaran berhasil! Pesanan dikonfirmasi." : "Pesanan berhasil dikirim!")
     } catch (e: any) {
       toast.error(e.message)
     } finally {
       setSubmitting(false)
     }
-  }, [customerName, tableNumber, notes, items, clearCart])
+  }, [customerName, tableNumber, notes, items, clearCart, paymentMethod])
+
+  const handleQrisConfirm = async () => {
+    setQrisConfirming(true)
+    await handleSubmitOrder()
+    setQrisConfirming(false)
+  }
 
   if (successOrder) {
     return <SuccessState order={successOrder} onNewOrder={() => setSuccessOrder(null)} />
@@ -368,15 +384,9 @@ export default function OrderPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4">
-                {items.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-brown-light/50">
-                    <ShoppingCartIcon className="w-12 h-12 mb-3" />
-                    <p className="text-sm">Belum ada pesanan</p>
-                    <p className="text-xs mt-1">Klik menu untuk menambahkan</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
+              <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 pb-8">
+                {items.length > 0 && (
+                  <div className="space-y-3 mb-6">
                     <AnimatePresence initial={false}>
                       {items.map((item) => (
                         <motion.div
@@ -427,72 +437,140 @@ export default function OrderPage() {
                     </AnimatePresence>
                   </div>
                 )}
-              </div>
 
-              <div className="flex-shrink-0 border-t border-cream-dark p-4 bg-cream/20">
-                <div className="space-y-3 mb-4">
-                  <div>
-                    <label className="block text-xs font-medium text-brown-light mb-1">
-                      Nama Pelanggan <span className="text-terracotta">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      placeholder="Masukkan nama"
-                      className="w-full px-3 py-2 rounded-xl border border-cream-dark bg-white text-sm placeholder:text-brown-light/30 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta transition-shadow"
-                    />
+                {items.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-brown-light/50">
+                    <ShoppingCartIcon className="w-12 h-12 mb-3" />
+                    <p className="text-sm">Belum ada pesanan</p>
+                    <p className="text-xs mt-1">Klik menu untuk menambahkan</p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-brown-light mb-1">No. Meja</label>
+                ) : (
+                  <div className="border-t border-cream-dark pt-4 space-y-3">
+                    <div>
+                      <label className="block text-xs font-medium text-brown-light mb-1">
+                        Nama Pelanggan <span className="text-terracotta">*</span>
+                      </label>
                       <input
-                        type="number"
-                        value={tableNumber}
-                        onChange={(e) => setTableNumber(e.target.value)}
-                        placeholder="Opsional"
-                        min="1"
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Masukkan nama"
                         className="w-full px-3 py-2 rounded-xl border border-cream-dark bg-white text-sm placeholder:text-brown-light/30 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta transition-shadow"
                       />
                     </div>
-                    <div className="flex-shrink-0 pt-5">
-                      <span className="text-[11px] text-brown-light/50">Kosongkan untuk <br />takeaway</span>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-brown-light mb-1">No. Meja</label>
+                        <input
+                          type="number"
+                          value={tableNumber}
+                          onChange={(e) => setTableNumber(e.target.value)}
+                          placeholder="Opsional"
+                          min="1"
+                          className="w-full px-3 py-2 rounded-xl border border-cream-dark bg-white text-sm placeholder:text-brown-light/30 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta transition-shadow"
+                        />
+                      </div>
+                      <div className="flex-shrink-0 pt-5">
+                        <span className="text-[11px] text-brown-light/50">Kosongkan untuk <br />takeaway</span>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-brown-light mb-1">Catatan</label>
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Catatan pesanan (opsional)"
-                      rows={2}
-                      className="w-full px-3 py-2 rounded-xl border border-cream-dark bg-white text-sm placeholder:text-brown-light/30 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta transition-shadow resize-none"
-                    />
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-brown-light">Total</span>
-                  <span className="text-lg font-bold text-brown">{formatCurrency(cartSubtotal)}</span>
-                </div>
+                    <div>
+                      <label className="block text-xs font-medium text-brown-light mb-2">Metode Pembayaran</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setPaymentMethod("counter")}
+                          className={`p-3 rounded-xl border-2 text-center transition-all ${
+                            paymentMethod === "counter"
+                              ? "border-terracotta bg-terracotta/5 text-terracotta"
+                              : "border-cream-dark bg-white text-brown-light hover:border-brown-light/30"
+                          }`}
+                        >
+                          <span className="block text-xl mb-1">🏪</span>
+                          <span className="text-xs font-medium">Bayar di Kasir</span>
+                        </button>
+                        <button
+                          onClick={() => setPaymentMethod("qris")}
+                          className={`p-3 rounded-xl border-2 text-center transition-all ${
+                            paymentMethod === "qris"
+                              ? "border-terracotta bg-terracotta/5 text-terracotta"
+                              : "border-cream-dark bg-white text-brown-light hover:border-brown-light/30"
+                          }`}
+                        >
+                          <span className="block text-xl mb-1">📱</span>
+                          <span className="text-xs font-medium">QRIS</span>
+                        </button>
+                      </div>
+                    </div>
 
-                <button
-                  onClick={handleSubmitOrder}
-                  disabled={submitting || items.length === 0}
-                  className="w-full py-3 rounded-xl bg-terracotta text-white font-medium text-sm hover:bg-terracotta-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
-                >
-                  {submitting ? (
-                    <>
-                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      Memproses...
-                    </>
-                  ) : (
-                    "Pesan Sekarang"
-                  )}
-                </button>
+                    <div>
+                      <label className="block text-xs font-medium text-brown-light mb-1">Catatan</label>
+                      <textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Catatan pesanan (opsional)"
+                        rows={2}
+                        className="w-full px-3 py-2 rounded-xl border border-cream-dark bg-white text-sm placeholder:text-brown-light/30 focus:outline-none focus:ring-2 focus:ring-terracotta/30 focus:border-terracotta transition-shadow resize-none"
+                      />
+                    </div>
+
+                    {paymentMethod === "qris" && (
+                      <div className="p-4 rounded-xl bg-white border border-cream-dark">
+                        <p className="text-xs font-medium text-brown mb-3 text-center">Scan QRIS untuk membayar</p>
+                        {qrisImageUrl ? (
+                          <img src={qrisImageUrl} alt="QRIS" className="w-48 h-48 object-contain mx-auto rounded-xl" />
+                        ) : (
+                          <div className="w-48 h-48 mx-auto rounded-xl border-2 border-dashed border-cream-dark flex items-center justify-center bg-cream/30">
+                            <p className="text-xs text-brown-light text-center px-4">QRIS belum diatur</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-sm text-brown-light">Total</span>
+                      <span className="text-lg font-bold text-brown">{formatCurrency(cartSubtotal)}</span>
+                    </div>
+
+                    {paymentMethod === "counter" ? (
+                      <button
+                        onClick={handleSubmitOrder}
+                        disabled={submitting || items.length === 0}
+                        className="w-full py-3 rounded-xl bg-terracotta text-white font-medium text-sm hover:bg-terracotta-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
+                      >
+                        {submitting ? (
+                          <>
+                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Memproses...
+                          </>
+                        ) : (
+                          "Pesan Sekarang"
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleQrisConfirm}
+                        disabled={submitting || qrisConfirming || items.length === 0 || !qrisImageUrl}
+                        className="w-full py-3 rounded-xl bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
+                      >
+                        {submitting || qrisConfirming ? (
+                          <>
+                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Memproses...
+                          </>
+                        ) : (
+                          "✅ Saya Sudah Bayar"
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </motion.div>
           </>
@@ -562,10 +640,17 @@ function SuccessState({ order, onNewOrder }: { order: Order; onNewOrder: () => v
           </div>
         </div>
 
-        <p className="text-xs text-brown-light/60 mb-6">
-          Pesanan dipukul pukul {orderTime} &mdash; status:{" "}
-          <span className="font-medium text-gold capitalize">{order.status}</span>
-        </p>
+        <div className="flex items-center justify-center gap-3 text-xs text-brown-light/60 mb-6">
+          <span>Pukul {orderTime}</span>
+          <span className="w-1 h-1 rounded-full bg-brown-light/30" />
+          <span className="capitalize">
+            Pembayaran: <span className="font-medium">{order.paymentMethod === "qris" ? "QRIS ✅" : "Di Kasir"}</span>
+          </span>
+          <span className="w-1 h-1 rounded-full bg-brown-light/30" />
+          <span className="capitalize">
+            Status: <span className="font-medium text-gold">{order.status}</span>
+          </span>
+        </div>
 
         <button
           onClick={onNewOrder}
